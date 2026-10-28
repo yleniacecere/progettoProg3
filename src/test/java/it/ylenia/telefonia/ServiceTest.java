@@ -36,7 +36,7 @@ class ServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.topUp("3332222222", "10", new Payment.Cash()));
     }
     @Test void allPaymentStrategiesAndInvalidAmounts() {
-        for (Payment p : new Payment[]{new Payment.Cash(), new Payment.CreditCard(), new Payment.DebitCard()}) service.topUp("3331111111", "10", p);
+        for (Payment p : new Payment[]{new Payment.Cash(), new Payment.CreditCard("1234567812345678", "Anna Rossi", "123", "12/99"), new Payment.DebitCard("12345")}) service.topUp("3331111111", "10", p);
         assertEquals(3000, service.active("3331111111").balance());
         for (String amount : new String[]{"0", "-1", "1.001", "abc", "1000.01"})
             assertThrows(IllegalArgumentException.class, () -> service.topUp("3331111111", amount, new Payment.Cash()));
@@ -53,6 +53,44 @@ class ServiceTest {
     @Test void dataOptionsAffectCharges() {
         service.changePlan("3332222222", Set.of(Plan.Usage.DATI));
         assertEquals(7, service.communicate("3332222222", Plan.Usage.DATI, 7, ""));
+    }
+    @Test void subscriberLoginAndCancellationArchive() {
+        assertEquals("3331111111", service.loginSubscriber(" 3331111111 ").phone());
+        for (String input : new String[]{"", "abc", "3339999999"})
+            assertThrows(IllegalArgumentException.class, () -> service.loginSubscriber(input));
+        service.topUp("3331111111", "10", new Payment.Cash());
+        service.cancel("3331111111");
+        assertThrows(IllegalArgumentException.class, () -> service.loginSubscriber("3331111111"));
+        assertEquals(1, service.activeSubscribers().size());
+        assertEquals("3331111111", service.cancelledSubscribers().get(0).phone());
+        assertEquals(1, service.history("3331111111").size());
+    }
+    @Test void invalidPaymentDetailsDoNotChangeBalanceOrHistory() {
+        Payment[] invalid = {
+            new Payment.CreditCard("1234", "Anna Rossi", "123", "12/99"),
+            new Payment.CreditCard("1234567812345678", "123", "123", "12/99"),
+            new Payment.CreditCard("1234567812345678", "Anna Rossi", "12x", "12/99"),
+            new Payment.CreditCard("1234567812345678", "Anna Rossi", "123", "13/99"),
+            new Payment.CreditCard("1234567812345678", "Anna Rossi", "123", "01/20"),
+            new Payment.DebitCard("1234"), new Payment.DebitCard("12a45")
+        };
+        for (Payment payment : invalid)
+            assertThrows(IllegalArgumentException.class, () -> service.topUp("3331111111", "10", payment));
+        assertEquals(0, service.active("3331111111").balance());
+        assertTrue(service.history("3331111111").isEmpty());
+        String currentMonth = java.time.YearMonth.now().format(java.time.format.DateTimeFormatter.ofPattern("MM/yy"));
+        service.topUp("3331111111", "10", new Payment.CreditCard("1234567812345678", "Anna Rossi", "123", currentMonth));
+        assertEquals(1000, service.active("3331111111").balance());
+        assertFalse(service.history("3331111111").get(0).contains("1234567812345678"));
+    }
+    @Test void predefinedAdminCredentialsRejectInvalidLogin() {
+        AdminAccess access = new AdminAccess();
+        assertDoesNotThrow(() -> access.login("admin", "admin".toCharArray()));
+        assertDoesNotThrow(() -> new AdminAccess().login("admin", "admin".toCharArray()));
+        assertThrows(IllegalArgumentException.class, () -> access.login("admin", "wrong".toCharArray()));
+        assertThrows(IllegalArgumentException.class, () -> access.login("other", "admin".toCharArray()));
+        assertThrows(IllegalArgumentException.class, () -> access.login("", new char[0]));
+        assertThrows(IllegalArgumentException.class, () -> access.login(null, null));
     }
     @Test void persistsAcrossReopening(@org.junit.jupiter.api.io.TempDir Path directory) {
         String url = "jdbc:sqlite:" + directory.resolve("test.db");

@@ -8,7 +8,9 @@
 
 L'applicazione standalone Java permette all'amministratore di registrare, modificare il piano e disdire abbonamenti. L'abbonato simula chiamate, SMS, trasferimenti dati e ricariche. Ogni abbonato possiede nome, cognome, residenza, numero, piano e conto fisso o ricaricabile. Swing realizza l'interfaccia, SQLite conserva anagrafiche e movimenti.
 
-L'accesso ai ruoli è simulato mediante selettore, senza autenticazione. Le chiamate hanno durata dichiarata in secondi e costo per minuto iniziato. SMS e dati sono quantificati rispettivamente in messaggi e MB interi. Le tariffe base sono 0,20 €/minuto, 0,10 €/SMS e 0,02 €/MB. Le opzioni dimezzano il costo della categoria, senza canoni. Il conto fisso accumula addebiti, mentre quello ricaricabile impedisce operazioni senza credito sufficiente. I pagamenti sono simulati. Lo storico rimane disponibile dopo la disdetta.
+Due pagine distinte gestiscono l'accesso. L'amministratore è predisposto dal sistema con username `admin` e password `admin`; `AdminAccess` verifica queste credenziali fisse senza registrazione, anche dopo il logout. L'abbonato accede con il solo numero, previamente registrato e attivo, e visualizza esclusivamente la propria utenza. Questo accesso identifica il numero ma non verifica l'identità della persona. Input errati, credenziali non valide e utenze disdette producono messaggi di errore.
+
+Le chiamate hanno durata dichiarata in secondi e costo per minuto iniziato. SMS e dati sono quantificati rispettivamente in messaggi e MB interi. Le tariffe base sono 0,20 €/minuto, 0,10 €/SMS e 0,02 €/MB. Le opzioni dimezzano il costo della categoria, senza canoni. Il conto fisso accumula addebiti, mentre quello ricaricabile impedisce operazioni senza credito sufficiente. Le utenze disdette scompaiono dall'elenco operativo e rimangono nell'archivio amministrativo, con storico consultabile e operazioni disabilitate.
 
 ## Diagramma UML delle classi
 
@@ -82,7 +84,7 @@ long price = wrapped.cost(usage, quantity);
 return usage == category ? (price + 1) / 2 : price;
 ```
 
-**Strategy.** `Service.topUp` riceve una strategia `Payment`, senza dipendere dalle classi di pagamento concrete. Contanti, carta di credito e bancomat producono una descrizione dell'autorizzazione simulata. Nella simulazione condividono la validazione e non dialogano con servizi bancari.
+**Strategy.** `Service.topUp` riceve una strategia `Payment`, senza dipendere dalle classi di pagamento concrete. Contanti, carta di credito e bancomat producono una descrizione dell'autorizzazione simulata. Condividono la validazione dell'importo; la carta controlla inoltre numero di 16 cifre, intestatario, CVV di 3 cifre e scadenza MM/AA non passata; il bancomat controlla un PIN di 5 cifre. Il modulo mostra i campi del metodo selezionato e maschera CVV e PIN. Sono utilizzati dati fittizi, senza comunicazioni bancarie: i dettagli non vengono persistiti o inclusi nelle ricevute.
 
 ```java
 String receipt = payment.authorize(cents);
@@ -107,6 +109,6 @@ L'aggiornamento del saldo controlla atomicamente lo stato attivo e il credito. A
 
 I test automatici coprono arrotondamento delle chiamate, combinazione delle opzioni, credito insufficiente senza movimenti residui, ricariche e importi non validi, conto fisso, destinatari e disdette, persistenza dopo riapertura. La verifica manuale dell'interfaccia richiede un ambiente desktop e deve includere l'intero flusso riportato nel README.
 
-Non sono simulate reti telefoniche reali, transazioni bancarie, autenticazione, fatturazione mensile o comunicazioni con altri gestori. Questi limiti delimitano il progetto didattico.
+Non sono simulate reti telefoniche reali, transazioni bancarie, autenticazione dell'identità dell'abbonato, fatturazione mensile o comunicazioni con altri gestori. Questi limiti delimitano il progetto didattico.
 
 Prima della consegna integrare la relazione con immagini dell'interfaccia, esportare UML e documento in PDF e allegare il PDF originale della prova. Questa relazione costituisce una bozza da rivedere e comprendere prima dell'esame.

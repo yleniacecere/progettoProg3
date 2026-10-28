@@ -10,6 +10,13 @@ public final class Service {
     private final Repository repository;
     public Service(Repository repository) { this.repository = repository; }
     public List<Subscriber> subscribers() { return repository.all(); }
+    public List<Subscriber> activeSubscribers() { return subscribers().stream().filter(Subscriber::active).toList(); }
+    public List<Subscriber> cancelledSubscribers() { return subscribers().stream().filter(s -> !s.active()).toList(); }
+    public Subscriber loginSubscriber(String phone) {
+        if (phone == null || !phone.trim().matches("[0-9]{8,15}"))
+            throw new IllegalArgumentException("Inserire un numero di telefono da 8 a 15 cifre.");
+        return active(phone.trim());
+    }
     public Subscriber active(String phone) {
         return subscribers().stream().filter(s -> s.phone().equals(phone) && s.active()).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Abbonamento non attivo o inesistente."));
